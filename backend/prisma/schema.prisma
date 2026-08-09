@@ -1,0 +1,317 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String    @id @default(auto()) @map("_id") @db.ObjectId
+  username          String    @unique @map("username")
+  email             String    @unique @map("email")
+  passwordHash      String?   @map("password_hash")
+  avatarUrl         String?   @map("avatar_url")
+  bio               String?
+  role              String    @default("user")
+  contributionScore Int       @default(0) @map("contribution_score")
+  reputationScore   Int       @default(0) @map("reputation_score")
+  streakCount       Int       @default(0) @map("streak_count")
+  longestStreak     Int       @default(0) @map("longest_streak")
+  lastActivityDate  DateTime? @map("last_activity_date")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  contributions   Contribution[]
+  questions       Question[]
+  answers         Answer[]
+  lessons         Lesson[]
+  quizAttempts    QuizAttempt[]
+  userMissions    UserMission[]
+  userCommunities UserCommunity[]
+  userBadges      UserBadge[]
+  impactRecords   ImpactRecord[]
+  reportsMade     Report[] @relation("Reporter")
+  reportsReceived Report[] @relation("TargetUser")
+
+  @@index([contributionScore])
+  @@map("users")
+}
+
+model Category {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String   @unique @map("name")
+  description String?
+  type        String
+  iconUrl     String?  @map("icon_url")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  questions Question[]
+  lessons   Lesson[]
+  quizzes   Quiz[]
+
+  @@map("categories")
+}
+
+model Mission {
+  id                 String    @id @default(auto()) @map("_id") @db.ObjectId
+  title              String
+  description        String
+  missionType        String    @map("mission_type")
+  contributionReward Int       @default(0) @map("contribution_reward")
+  rules              Json      @default("{}")
+  startsAt           DateTime? @map("starts_at")
+  endsAt             DateTime? @map("ends_at")
+  isDaily            Boolean   @default(false) @map("is_daily")
+  isActive           Boolean   @default(true) @map("is_active")
+  createdAt          DateTime  @default(now()) @map("created_at")
+
+  userMissions UserMission[]
+
+  @@index([isActive, startsAt, endsAt])
+  @@index([isDaily, isActive])
+  @@map("missions")
+}
+
+model UserMission {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String    @map("user_id") @db.ObjectId
+  missionId   String    @map("mission_id") @db.ObjectId
+  status      String    @default("in_progress")
+  progress    Json      @default("{}")
+  completedAt DateTime? @map("completed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  user    User    @relation(fields: [userId], references: [id])
+  mission Mission @relation(fields: [missionId], references: [id])
+
+  @@unique([userId, missionId])
+  @@index([userId, status])
+  @@map("user_missions")
+}
+
+model Contribution {
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId            String   @map("user_id") @db.ObjectId
+  actionType        String   @map("action_type")
+  contributionValue Int      @default(0) @map("contribution_value")
+  qualityScore      Int      @default(0) @map("quality_score")
+  validationScore   Int      @default(0) @map("validation_score")
+  metadata          Json     @default("{}")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([actionType, createdAt])
+  @@map("contributions")
+}
+
+model Question {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  authorId         String   @map("author_id") @db.ObjectId
+  categoryId       String?  @map("category_id") @db.ObjectId
+  title            String
+  content          String
+  status           String   @default("open")
+  acceptedAnswerId String?  @map("accepted_answer_id") @db.ObjectId
+  viewCount        Int      @default(0) @map("view_count")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  author   User      @relation(fields: [authorId], references: [id])
+  category Category? @relation(fields: [categoryId], references: [id])
+  answers  Answer[]
+
+  @@index([authorId, createdAt])
+  @@index([categoryId, status, createdAt])
+  @@index([status, createdAt])
+  @@map("questions")
+}
+
+model Answer {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  questionId       String   @map("question_id") @db.ObjectId
+  authorId         String   @map("author_id") @db.ObjectId
+  content          String
+  upvotes          Int      @default(0)
+  helpfulnessScore Int      @default(0) @map("helpfulness_score")
+  isAccepted       Boolean  @default(false) @map("is_accepted")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  question Question @relation(fields: [questionId], references: [id])
+  author   User     @relation(fields: [authorId], references: [id])
+
+  @@index([questionId, upvotes])
+  @@index([authorId, createdAt])
+  @@map("answers")
+}
+
+model Lesson {
+  id                String    @id @default(auto()) @map("_id") @db.ObjectId
+  creatorId         String    @map("creator_id") @db.ObjectId
+  categoryId        String?   @map("category_id") @db.ObjectId
+  title             String
+  description       String?
+  contentUrl        String?   @map("content_url")
+  durationMinutes   Int?      @map("duration_minutes")
+  difficulty        String    @default("beginner")
+  engagementMetrics Json      @default("{}") @map("engagement_metrics")
+  isPublished       Boolean   @default(false) @map("is_published")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  creator  User      @relation(fields: [creatorId], references: [id])
+  category Category? @relation(fields: [categoryId], references: [id])
+  quizzes  Quiz[]
+
+  @@index([categoryId, difficulty, createdAt])
+  @@index([creatorId])
+  @@map("lessons")
+}
+
+model Quiz {
+  id                String    @id @default(auto()) @map("_id") @db.ObjectId
+  lessonId          String?   @map("lesson_id") @db.ObjectId
+  categoryId        String?   @map("category_id") @db.ObjectId
+  title             String
+  difficulty        String    @default("beginner")
+  questions         Json
+  timeLimitSeconds  Int?      @map("time_limit_seconds")
+  contributionValue Int       @default(10) @map("contribution_value")
+  isActive          Boolean   @default(true) @map("is_active")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  lesson   Lesson?      @relation(fields: [lessonId], references: [id])
+  category Category?    @relation(fields: [categoryId], references: [id])
+  attempts QuizAttempt[]
+
+  @@map("quizzes")
+}
+
+model QuizAttempt {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId           String   @map("user_id") @db.ObjectId
+  quizId           String   @map("quiz_id") @db.ObjectId
+  score            Int      @default(0)
+  maxScore         Int      @default(0) @map("max_score")
+  answers          Json
+  timeTakenSeconds Int?     @map("time_taken_seconds")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+  quiz Quiz @relation(fields: [quizId], references: [id])
+
+  @@index([userId, createdAt])
+  @@map("quiz_attempts")
+}
+
+model Community {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  title           String
+  description     String?
+  type            String    @default("study")
+  iconUrl         String?   @map("icon_url")
+  memberCount     Int       @default(0) @map("member_count")
+  activityMetrics Json      @default("{}") @map("activity_metrics")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  userCommunities UserCommunity[]
+
+  @@map("communities")
+}
+
+model UserCommunity {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @map("user_id") @db.ObjectId
+  communityId String   @map("community_id") @db.ObjectId
+  role        String   @default("member")
+  joinedAt    DateTime @default(now()) @map("joined_at")
+
+  user      User      @relation(fields: [userId], references: [id])
+  community Community @relation(fields: [communityId], references: [id])
+
+  @@unique([userId, communityId])
+  @@map("user_communities")
+}
+
+model Badge {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  name             String
+  description      String
+  iconUrl          String?  @map("icon_url")
+  requirementType  String   @map("requirement_type")
+  requirementValue Int      @default(0) @map("requirement_value")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  userBadges UserBadge[]
+
+  @@map("badges")
+}
+
+model UserBadge {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @map("user_id") @db.ObjectId
+  badgeId   String   @map("badge_id") @db.ObjectId
+  awardedAt DateTime @default(now()) @map("awarded_at")
+
+  user  User  @relation(fields: [userId], references: [id])
+  badge Badge @relation(fields: [badgeId], references: [id])
+
+  @@unique([userId, badgeId])
+  @@map("user_badges")
+}
+
+model ImpactCampaign {
+  id               String    @id @default(auto()) @map("_id") @db.ObjectId
+  name             String
+  sponsor          String?
+  description      String?
+  targetAmount     Int       @map("target_amount")
+  currentAmount    Int       @default(0) @map("current_amount")
+  unit             String    @default("meals")
+  startsAt         DateTime? @map("starts_at")
+  endsAt           DateTime? @map("ends_at")
+  isActive         Boolean   @default(true) @map("is_active")
+  transparencyData Json      @default("{}") @map("transparency_data")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  impactRecords ImpactRecord[]
+
+  @@map("impact_campaigns")
+}
+
+model ImpactRecord {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  campaignId  String   @map("campaign_id") @db.ObjectId
+  userId      String?  @map("user_id") @db.ObjectId
+  actionType  String   @map("action_type")
+  impactValue Int      @default(0) @map("impact_value")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  campaign ImpactCampaign @relation(fields: [campaignId], references: [id])
+  user     User?          @relation(fields: [userId], references: [id])
+
+  @@map("impact_records")
+}
+
+model Report {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  reporterId   String   @map("reporter_id") @db.ObjectId
+  targetType   String   @map("target_type")
+  targetId     String   @map("target_id") @db.ObjectId
+  targetUserId String?  @map("target_user_id") @db.ObjectId
+  reason       String
+  details      String?
+  status       String   @default("pending")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  reporter   User  @relation("Reporter", fields: [reporterId], references: [id])
+  targetUser User? @relation("TargetUser", fields: [targetUserId], references: [id])
+
+  @@index([targetType, targetId])
+  @@index([status])
+  @@map("reports")
+}

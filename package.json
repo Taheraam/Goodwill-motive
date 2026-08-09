@@ -1,0 +1,28 @@
+{
+  "name": "goodwill-motive",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Goodwill Motive — Cross-platform humanitarian social-learning ecosystem",
+  "workspaces": [
+    "frontend-web",
+    "frontend-mobile",
+    "backend"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace=frontend-web",
+    "dev:mobile": "npm start --workspace=frontend-mobile",
+    "dev:backend": "npm run start:dev --workspace=backend",
+    "build:web": "npm run build --workspace=frontend-web",
+    "build:backend": "npm run build --workspace=backend",
+    "lint": "npm run lint --workspaces",
+    "typecheck": "npm run typecheck --workspaces"
+  },
+  "devDependencies": {
+    "prettier": "^3.3.0",
+    "typescript": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  }
+}
