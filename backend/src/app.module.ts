@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { JwtModule } from '@nestjs/jwt';
 import { APP_GUARD } from '@nestjs/core';
@@ -27,9 +27,14 @@ import { JwtAuthGuard } from './auth/jwt-auth.guard';
         limit: 100,
       },
     ]),
-    JwtModule.register({
-      secret: process.env.JWT_SECRET ?? 'dev-secret-change-in-production',
-      signOptions: { expiresIn: '15m' },
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        secret: config.get<string>('JWT_SECRET', 'dev-secret-change-in-production'),
+        signOptions: { expiresIn: '15m' },
+      }),
+      global: true,
     }),
     PrismaModule,
     AuthModule,

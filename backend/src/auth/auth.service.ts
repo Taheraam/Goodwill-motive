@@ -1,10 +1,13 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
+import { User } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
@@ -47,7 +50,8 @@ export class AuthService {
 
   async googleAuth() {
     const clientId = process.env.GOOGLE_CLIENT_ID;
-    const redirectUri = process.env.GOOGLE_REDIRECT_URI ?? 'http://localhost:3001/api/auth/google/callback';
+    const redirectUri =
+      process.env.GOOGLE_REDIRECT_URI ?? 'http://localhost:3001/api/auth/google/callback';
     if (!clientId) {
       return {
         url: null,
@@ -56,6 +60,7 @@ export class AuthService {
     }
     const scope = encodeURIComponent('openid email profile');
     const state = Math.random().toString(36).substring(2);
+    // TODO: Store state in cache/session for CSRF validation in callback
     const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&state=${state}&access_type=offline&prompt=consent`;
     return { url, state };
   }
@@ -63,7 +68,8 @@ export class AuthService {
   async googleCallback(code: string) {
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    const redirectUri = process.env.GOOGLE_REDIRECT_URI ?? 'http://localhost:3001/api/auth/google/callback';
+    const redirectUri =
+      process.env.GOOGLE_REDIRECT_URI ?? 'http://localhost:3001/api/auth/google/callback';
     if (!clientId || !clientSecret) {
       throw new UnauthorizedException('Google OAuth not configured');
     }
@@ -81,14 +87,18 @@ export class AuthService {
     });
 
     if (!tokenRes.ok) throw new UnauthorizedException('Failed to exchange code with Google');
-    const tokenData = await tokenRes.json() as { access_token: string };
+    const tokenData = (await tokenRes.json()) as { access_token: string };
 
     const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
       headers: { Authorization: `Bearer ${tokenData.access_token}` },
     });
 
     if (!userInfoRes.ok) throw new UnauthorizedException('Failed to fetch user info from Google');
-    const googleUser = await userInfoRes.json() as { id: string; email: string; name?: string };
+    const googleUser = (await userInfoRes.json()) as {
+      id: string;
+      email: string;
+      name?: string;
+    };
 
     let user = await this.prisma.user.findUnique({ where: { email: googleUser.email } });
     if (!user) {
@@ -106,11 +116,15 @@ export class AuthService {
   }
 
   async refresh(_token: string) {
+    // TODO: Implement refresh token rotation
     return { message: 'Refresh not yet configured. Use JWT access tokens.' };
   }
 
   async oauth(_dto: { provider: string; idToken: string }) {
-    return { message: 'Use GET /auth/google for Google OAuth flow. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env' };
+    return {
+      message:
+        'Use GET /auth/google for Google OAuth flow. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env',
+    };
   }
 
   async logout(_token: string) {
@@ -132,7 +146,7 @@ export class AuthService {
     };
   }
 
-  private sanitize(user: any) {
+  private sanitize(user: User) {
     const { passwordHash, ...rest } = user;
     return rest;
   }

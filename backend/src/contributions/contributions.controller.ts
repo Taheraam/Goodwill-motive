@@ -1,19 +1,16 @@
-import { Controller, Get, Post, Body, Request, UnauthorizedException } from '@nestjs/common';
+import { Controller, Get, Request } from '@nestjs/common';
 import { ContributionsService } from './contributions.service';
+
+interface AuthenticatedRequest {
+  user: { sub: string };
+}
 
 @Controller('contributions')
 export class ContributionsController {
   constructor(private readonly contributionsService: ContributionsService) {}
 
   @Get('me')
-  async getMyContributions(@Request() req: any) {
-    const userId = req.user?.sub;
-    if (!userId) throw new UnauthorizedException();
-    return this.contributionsService.getUserStats(userId);
-  }
-
-  @Post('validate')
-  async validate() {
-    return { message: 'Peer validation coming soon' };
+  async myStats(@Request() req: AuthenticatedRequest) {
+    return this.contributionsService.getUserStats(req.user.sub);
   }
 }

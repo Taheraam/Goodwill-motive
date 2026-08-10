@@ -1,6 +1,12 @@
-import { Controller, Post, Get, Body, Request, Query, Res } from '@nestjs/common';
+import { Controller, Post, Get, Body, Request, Query, Res, HttpCode, HttpStatus } from '@nestjs/common';
+import { Response } from 'express';
 import { AuthService } from './auth.service';
 import { Public } from './public.decorator';
+import { SignupDto, LoginDto, OAuthDto, RefreshTokenDto } from './dto/auth.dto';
+
+interface AuthenticatedRequest {
+  user: { sub: string };
+}
 
 @Controller('auth')
 export class AuthController {
@@ -8,14 +14,15 @@ export class AuthController {
 
   @Public()
   @Post('signup')
-  async signup(@Body() body: { email: string; password: string; username: string }) {
-    return this.authService.signup(body);
+  async signup(@Body() dto: SignupDto) {
+    return this.authService.signup(dto);
   }
 
   @Public()
   @Post('login')
-  async login(@Body() body: { email: string; password: string }) {
-    return this.authService.login(body);
+  @HttpCode(HttpStatus.OK)
+  async login(@Body() dto: LoginDto) {
+    return this.authService.login(dto);
   }
 
   @Public()
@@ -26,35 +33,42 @@ export class AuthController {
 
   @Public()
   @Get('google/callback')
-  async googleCallback(@Query('code') code: string, @Res() res: any) {
-    if (!code) return res.redirect(`${process.env.FRONTEND_URL ?? 'http://localhost:3000'}/login?error=google_oauth_failed`);
+  async googleCallback(@Query('code') code: string, @Res() res: Response) {
+    const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
+    if (!code) {
+      return res.redirect(`${frontendUrl}/login?error=google_oauth_failed`);
+    }
     try {
       const result = await this.authService.googleCallback(code);
-      return res.redirect(`${process.env.FRONTEND_URL ?? 'http://localhost:3000'}/oauth/callback?userId=${result.user.id}&token=${result.tokens.accessToken}`);
+      return res.redirect(
+        `${frontendUrl}/oauth/callback?userId=${result.user.id}&token=${result.tokens.accessToken}`,
+      );
     } catch {
-      return res.redirect(`${process.env.FRONTEND_URL ?? 'http://localhost:3000'}/login?error=google_oauth_failed`);
+      return res.redirect(`${frontendUrl}/login?error=google_oauth_failed`);
     }
   }
 
   @Public()
   @Post('oauth')
-  async oauth(@Body() body: { provider: string; idToken: string }) {
-    return this.authService.oauth(body);
+  async oauth(@Body() dto: OAuthDto) {
+    return this.authService.oauth(dto);
   }
 
   @Public()
   @Post('refresh')
-  async refresh(@Body() body: { token: string }) {
-    return this.authService.refresh(body.token);
+  @HttpCode(HttpStatus.OK)
+  async refresh(@Body() dto: RefreshTokenDto) {
+    return this.authService.refresh(dto.token);
   }
 
   @Post('logout')
+  @HttpCode(HttpStatus.OK)
   async logout() {
     return { message: 'Logged out' };
   }
 
   @Get('me')
-  async me(@Request() req: any) {
-    return this.authService.me(req.user?.sub);
+  async me(@Request() req: AuthenticatedRequest) {
+    return this.authService.me(req.user.sub);
   }
 }

@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { UpdateProfileDto } from './dto/users.dto';
+import { CONTRIBUTION_POINTS } from '@goodwill/shared';
 
 @Injectable()
 export class UsersService {
@@ -17,7 +19,7 @@ export class UsersService {
     return rest;
   }
 
-  async updateProfile(id: string, dto: any) {
+  async updateProfile(id: string, dto: UpdateProfileDto) {
     return this.prisma.user.update({
       where: { id },
       data: dto,
@@ -30,21 +32,20 @@ export class UsersService {
       this.prisma.quizAttempt.count({ where: { userId: id } }),
       this.prisma.answer.count({ where: { authorId: id } }),
       this.prisma.userMission.count({ where: { userId: id, status: 'completed' } }),
-      this.prisma.contribution.findMany({
+      this.prisma.contribution.aggregate({
         where: { userId: id },
-        select: { contributionValue: true, actionType: true },
+        _sum: { contributionValue: true },
       }),
     ]);
 
-    const totalContribution = contributions.reduce((sum, c) => sum + c.contributionValue, 0);
-    const mealsFunded = Math.floor(totalContribution / 100);
-    const tutoringHours = Math.floor(contributions.filter(c => c.actionType === 'answer_accepted').length * 0.5);
+    const totalContribution = contributions._sum.contributionValue ?? 0;
+    const mealsFunded = Math.floor(totalContribution / CONTRIBUTION_POINTS.MEALS_PER_POINT);
 
     return {
       totalQuizzesCompleted: quizzes,
       totalQuestionsAnswered: answers,
       totalMissionsCompleted: missions,
-      impactGenerated: { mealsFunded, tutoringHoursSupported: tutoringHours },
+      impactGenerated: { mealsFunded, tutoringHoursSupported: Math.floor(answers * CONTRIBUTION_POINTS.TUTORING_HOURS_PER_ACCEPTED) },
     };
   }
 

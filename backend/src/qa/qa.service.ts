@@ -1,81 +1,119 @@
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ContributionsService } from '../contributions/contributions.service';
+import { CreateQuestionDto, CreateAnswerDto } from './dto/qa.dto';
+import { CONTRIBUTION_POINTS, ACTION_TYPES } from '@goodwill/shared';
 
 @Injectable()
 export class QaService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly contributions: ContributionsService,
+    private readonly contributionsService: ContributionsService,
   ) {}
 
-  async listQuestions() {
+  async listQuestions(cursor?: string, take = 20) {
+    const limit = Math.min(take, 100); // Cap at 100 to prevent abuse
     return this.prisma.question.findMany({
       where: { status: 'open' },
       orderBy: { createdAt: 'desc' },
+      take: limit,
+      ...(cursor && { skip: 1, cursor: { id: cursor } }),
       include: {
         author: { select: { id: true, username: true, avatarUrl: true } },
-        category: true,
+        category: { select: { id: true, name: true } },
         _count: { select: { answers: true } },
       },
     });
   }
 
   async getQuestion(id: string) {
-    return this.prisma.question.findUnique({
+    const question = await this.prisma.question.findUnique({
       where: { id },
       include: {
         author: { select: { id: true, username: true, avatarUrl: true } },
-        answers: { include: { author: { select: { id: true, username: true, avatarUrl: true } } } },
+        category: true,
+        answers: {
+          include: {
+            author: { select: { id: true, username: true, avatarUrl: true } },
+          },
+          orderBy: { createdAt: 'asc' },
+          take: 50,
+        },
       },
     });
+    if (!question) throw new NotFoundException('Question not found');
+
+    // Increment view count
+    await this.prisma.question.update({ where: { id }, data: { viewCount: { increment: 1 } } });
+
+    return question;
   }
 
-  async createQuestion(userId: string, dto: { title: string; content: string; categoryId: string }) {
+  async createQuestion(userId: string, dto: CreateQuestionDto) {
     const question = await this.prisma.question.create({
       data: {
         authorId: userId,
         title: dto.title,
         content: dto.content,
         categoryId: dto.categoryId,
-        status: 'open',
       },
     });
-    await this.contributions.record(userId, 'question_asked', 5);
+
+    await this.contributionsService.record(
+      userId,
+      ACTION_TYPES.QUESTION_ASKED,
+      CONTRIBUTION_POINTS.QUESTION_ASKED,
+    );
+
     return question;
   }
 
-  async createAnswer(userId: string, questionId: string, content: string) {
-    const question = await this.prisma.question.findUnique({ where: { id: questionId } });
+  async createAnswer(userId: string, dto: CreateAnswerDto) {
+    const question = await this.prisma.question.findUnique({ where: { id: dto.questionId } });
     if (!question) throw new NotFoundException('Question not found');
 
     const answer = await this.prisma.answer.create({
-      data: { authorId: userId, questionId, content, upvotes: 0, helpfulnessScore: 0 },
+      data: {
+        questionId: dto.questionId,
+        authorId: userId,
+        content: dto.content,
+      },
     });
-    await this.contributions.record(userId, 'answer_given', 10);
+
+    await this.contributionsService.record(
+      userId,
+      ACTION_TYPES.ANSWER_GIVEN,
+      CONTRIBUTION_POINTS.ANSWER_GIVEN,
+    );
+
     return answer;
   }
 
-  async upvote(userId: string, answerId: string) {
-    const answer = await this.prisma.answer.update({
+  async acceptAnswer(answerId: string, userId: string) {
+    const answer = await this.prisma.answer.findUnique({
       where: { id: answerId },
-      data: { upvotes: { increment: 1 } },
+      include: { question: true },
     });
-    return { upvotes: answer.upvotes };
-  }
-
-  async accept(userId: string, answerId: string) {
-    const answer = await this.prisma.answer.findUnique({ where: { id: answerId } });
     if (!answer) throw new NotFoundException('Answer not found');
+    if (answer.question.authorId !== userId) {
+      throw new ForbiddenException('Only the question author can accept an answer');
+    }
 
-    const question = await this.prisma.question.findUnique({ where: { id: answer.questionId } });
-    if (question?.authorId !== userId) throw new UnauthorizedException('Only the question author can accept an answer');
+    await this.prisma.answer.update({
+      where: { id: answerId },
+      data: { isAccepted: true },
+    });
+    await this.prisma.question.update({
+      where: { id: answer.questionId },
+      data: { status: 'solved' },
+    });
 
-    await this.prisma.answer.updateMany({ where: { questionId: answer.questionId }, data: { isAccepted: false } });
-    await this.prisma.answer.update({ where: { id: answerId }, data: { isAccepted: true, helpfulnessScore: 100 } });
-    await this.prisma.question.update({ where: { id: answer.questionId }, data: { acceptedAnswerId: answerId, status: 'solved' } });
+    await this.contributionsService.record(
+      answer.authorId,
+      ACTION_TYPES.ANSWER_ACCEPTED,
+      CONTRIBUTION_POINTS.ANSWER_ACCEPTED,
+    );
 
-    await this.contributions.record(answer.authorId, 'answer_accepted', 25);
-    return { accepted: true };
+    return { message: 'Answer accepted' };
   }
 }

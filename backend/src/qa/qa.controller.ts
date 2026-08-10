@@ -1,20 +1,25 @@
-import { Controller, Get, Post, Param, Body, Request, UnauthorizedException } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, Query, Request } from '@nestjs/common';
 import { QaService } from './qa.service';
+import { CreateQuestionDto, CreateAnswerDto } from './dto/qa.dto';
+import { Public } from '../auth/public.decorator';
+
+interface AuthenticatedRequest {
+  user: { sub: string };
+}
 
 @Controller()
 export class QaController {
   constructor(private readonly qaService: QaService) {}
 
+  @Public()
   @Get('questions')
-  async listQuestions() {
-    return this.qaService.listQuestions();
+  async listQuestions(@Query('cursor') cursor?: string, @Query('take') take?: string) {
+    return this.qaService.listQuestions(cursor, take ? parseInt(take, 10) : 20);
   }
 
   @Post('questions')
-  async createQuestion(@Body() body: { title: string; content: string; categoryId: string }, @Request() req: any) {
-    const userId = req.user?.sub;
-    if (!userId) throw new UnauthorizedException();
-    return this.qaService.createQuestion(userId, body);
+  async createQuestion(@Body() dto: CreateQuestionDto, @Request() req: AuthenticatedRequest) {
+    return this.qaService.createQuestion(req.user.sub, dto);
   }
 
   @Get('questions/:id')
@@ -23,23 +28,12 @@ export class QaController {
   }
 
   @Post('answers')
-  async createAnswer(@Body() body: { questionId: string; content: string }, @Request() req: any) {
-    const userId = req.user?.sub;
-    if (!userId) throw new UnauthorizedException();
-    return this.qaService.createAnswer(userId, body.questionId, body.content);
+  async createAnswer(@Body() dto: CreateAnswerDto, @Request() req: AuthenticatedRequest) {
+    return this.qaService.createAnswer(req.user.sub, dto);
   }
 
-  @Post('answers/:id/upvote')
-  async upvote(@Param('id') id: string, @Request() req: any) {
-    const userId = req.user?.sub;
-    if (!userId) throw new UnauthorizedException();
-    return this.qaService.upvote(userId, id);
-  }
-
-  @Post('answers/:id/accept')
-  async accept(@Param('id') id: string, @Request() req: any) {
-    const userId = req.user?.sub;
-    if (!userId) throw new UnauthorizedException();
-    return this.qaService.accept(userId, id);
+  @Patch('answers/:id/accept')
+  async acceptAnswer(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
+    return this.qaService.acceptAnswer(id, req.user.sub);
   }
 }
