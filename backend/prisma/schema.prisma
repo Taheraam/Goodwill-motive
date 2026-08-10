@@ -188,6 +188,9 @@ model Quiz {
   category Category?    @relation(fields: [categoryId], references: [id])
   attempts QuizAttempt[]
 
+  @@index([lessonId])
+  @@index([categoryId])
+  @@index([isActive])
   @@map("quizzes")
 }
 
@@ -220,6 +223,7 @@ model Community {
 
   userCommunities UserCommunity[]
 
+  @@index([memberCount])
   @@map("communities")
 }
 
@@ -280,6 +284,7 @@ model ImpactCampaign {
 
   impactRecords ImpactRecord[]
 
+  @@index([isActive, createdAt])
   @@map("impact_campaigns")
 }
 
