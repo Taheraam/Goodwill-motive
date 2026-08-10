@@ -18,24 +18,28 @@ const categoryConfigs = [
   { type: 'geo', icon: GlobeIcon, gradient: 'from-[#1B4332] to-[#40916C]', label: 'Geography' },
 ];
 
+import { useQuery } from '@tanstack/react-query';
+
 export default function LearnPage() {
   const { user } = useAuthStore();
-  const [quizzes, setQuizzes] = useState<Quiz[]>([]);
-  const [questions, setQuestions] = useState<Question[]>([]);
   const [activeTab, setActiveTab] = useState<'quizzes' | 'qa'>('quizzes');
   const [showAskModal, setShowAskModal] = useState(false);
-  const [quizzesLoading, setQuizzesLoading] = useState(true);
-  const [qaLoading, setQaLoading] = useState(true);
 
-  const fetchQuestions = () => {
-    setQaLoading(true);
-    api.get('/questions').then(r => setQuestions(r.data)).catch(() => {}).finally(() => setQaLoading(false));
-  };
+  const { data: quizzes = [], isLoading: quizzesLoading } = useQuery({
+    queryKey: ['quizzes'],
+    queryFn: async () => {
+      const res = await api.get('/quizzes');
+      return res.data as Quiz[];
+    },
+  });
 
-  useEffect(() => {
-    api.get('/quizzes').then(r => setQuizzes(r.data)).catch(() => {}).finally(() => setQuizzesLoading(false));
-    fetchQuestions();
-  }, []);
+  const { data: questions = [], isLoading: qaLoading, refetch: fetchQuestions } = useQuery({
+    queryKey: ['questions'],
+    queryFn: async () => {
+      const res = await api.get('/questions');
+      return res.data as Question[];
+    },
+  });
 
   const getDifficultyColor = (d: string) => d === 'beginner' ? 'bg-[#D8F3DC] text-[#40916C]' : 'bg-[#F4E4D4] text-[#8B5E3C]';
 

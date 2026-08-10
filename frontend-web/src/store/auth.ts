@@ -1,5 +1,9 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 
+// Note: In a real Monorepo setup using Turborepo or npm workspaces properly built, 
+// we would import this from '@goodwill/shared'. For now we redefine it here 
+// since Next.js might not compile the external workspace without next-transpile-modules.
 interface User {
   id: string;
   username: string;
@@ -18,20 +22,18 @@ interface AuthState {
   logout: () => void;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
-  user: null,
-  accessToken: null,
-  isAuthenticated: false,
-  setAuth: (user, token) => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('accessToken', token);
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set) => ({
+      user: null,
+      accessToken: null,
+      isAuthenticated: false,
+      setAuth: (user, token) => set({ user, accessToken: token, isAuthenticated: true }),
+      logout: () => set({ user: null, accessToken: null, isAuthenticated: false }),
+    }),
+    {
+      name: 'auth-storage',
+      storage: createJSONStorage(() => localStorage),
     }
-    set({ user, accessToken: token, isAuthenticated: true });
-  },
-  logout: () => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('accessToken');
-    }
-    set({ user: null, accessToken: null, isAuthenticated: false });
-  },
-}));
+  )
+);

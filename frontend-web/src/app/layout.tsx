@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from 'sonner';
+import Providers from './providers';
 
 export const metadata: Metadata = {
   title: 'Goodwill Motive — Learn Together. Help Others. Change Real Lives.',
@@ -15,19 +16,21 @@ export default function RootLayout({
   return (
     <html lang="en" className="scroll-smooth">
       <body className="min-h-full bg-[var(--color-background)] text-zinc-900 antialiased">
-        {children}
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            style: {
-              background: 'rgba(255,255,255,0.9)',
-              backdropFilter: 'blur(16px)',
-              border: '1px solid rgba(64,145,108,0.15)',
-              borderRadius: '12px',
-              color: '#1B4332',
-            },
-          }}
-        />
+        <Providers>
+          {children}
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              style: {
+                background: 'rgba(255,255,255,0.9)',
+                backdropFilter: 'blur(16px)',
+                border: '1px solid rgba(64,145,108,0.15)',
+                borderRadius: '12px',
+                color: '#1B4332',
+              },
+            }}
+          />
+        </Providers>
       </body>
     </html>
   );

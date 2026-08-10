@@ -9,15 +9,24 @@ import { UsersIcon, BookOpenIcon, TargetIcon, HeartIcon, LogOutIcon, SettingsIco
 
 interface DashboardStats { totalUsers: number; totalQuizzes: number; totalMissions: number; totalCampaigns: number; }
 
+import { useQuery } from '@tanstack/react-query';
+
 export default function AdminDashboardPage() {
   const { admin, logout } = useAdminAuthStore();
   const router = useRouter();
-  const [stats, setStats] = useState<DashboardStats>({ totalUsers: 0, totalQuizzes: 0, totalMissions: 0, totalCampaigns: 0 });
 
   useEffect(() => {
     if (!useAdminAuthStore.getState().isAuthenticated) { router.push('/admin/login'); return; }
-    adminApi.get('/contributions/dashboard').then(r => setStats(r.data)).catch(() => {});
   }, [router]);
+
+  const { data: stats = { totalUsers: 0, totalQuizzes: 0, totalMissions: 0, totalCampaigns: 0 } } = useQuery({
+    queryKey: ['adminDashboardStats'],
+    queryFn: async () => {
+      const res = await adminApi.get('/contributions/dashboard');
+      return res.data as DashboardStats;
+    },
+    enabled: useAdminAuthStore.getState().isAuthenticated,
+  });
 
   const handleLogout = () => { logout(); router.push('/admin/login'); };
 

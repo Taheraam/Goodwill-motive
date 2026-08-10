@@ -18,15 +18,19 @@ interface UserStats {
   missionCount: number;
 }
 
+import { useQuery } from '@tanstack/react-query';
+
 export default function ProfilePage() {
   const { user, logout } = useAuthStore();
-  const [stats, setStats] = useState<UserStats | null>(null);
-  const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  useEffect(() => {
-    api.get('/contributions/me').then(r => setStats(r.data)).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+  const { data: stats, isLoading: loading } = useQuery({
+    queryKey: ['profileStats'],
+    queryFn: async () => {
+      const res = await api.get('/contributions/me');
+      return res.data as UserStats;
+    },
+  });
 
   const handleLogout = () => { logout(); router.push('/login'); };
 

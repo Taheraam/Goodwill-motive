@@ -17,18 +17,28 @@ const quickActions = [
 interface Mission { id: string; title: string; contributionReward: number; missionType: string; }
 interface Campaign { id: string; name: string; currentAmount: number; targetAmount: number; unit: string; }
 
+import { useQuery } from '@tanstack/react-query';
+
 export default function DashboardPage() {
   const { user } = useAuthStore();
-  const [missions, setMissions] = useState<Mission[]>([]);
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    Promise.all([
-      api.get('/missions').then(r => setMissions(r.data.slice(0, 3))).catch(() => {}),
-      api.get('/impact/campaigns').then(r => setCampaigns(r.data)).catch(() => {}),
-    ]).finally(() => setLoading(false));
-  }, []);
+  const { data: missions = [], isLoading: loadingMissions } = useQuery({
+    queryKey: ['missions'],
+    queryFn: async () => {
+      const res = await api.get('/missions');
+      return res.data.slice(0, 3) as Mission[];
+    },
+  });
+
+  const { data: campaigns = [], isLoading: loadingCampaigns } = useQuery({
+    queryKey: ['campaigns'],
+    queryFn: async () => {
+      const res = await api.get('/impact/campaigns');
+      return res.data as Campaign[];
+    },
+  });
+
+  const loading = loadingMissions || loadingCampaigns;
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';

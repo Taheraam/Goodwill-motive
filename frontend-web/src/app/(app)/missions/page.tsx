@@ -9,23 +9,28 @@ import { toast } from 'sonner';
 
 interface Mission { id: string; title: string; description: string; contributionReward: number; missionType: string; isDaily: boolean; }
 
+import { useQuery } from '@tanstack/react-query';
+
 export default function MissionsPage() {
   const { user } = useAuthStore();
-  const [missions, setMissions] = useState<Mission[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  const { data: missions = [], isLoading: loading, refetch: refetchMissions } = useQuery({
+    queryKey: ['missions'],
+    queryFn: async () => {
+      const res = await api.get('/missions');
+      return res.data as Mission[];
+    },
+  });
 
   const handleComplete = async (missionId: string) => {
     try {
       await api.post(`/missions/${missionId}/complete`);
       toast.success('Mission completed!');
+      refetchMissions();
     } catch {
       toast.error('Failed to complete mission');
     }
   };
-
-  useEffect(() => {
-    api.get('/missions').then(r => setMissions(r.data)).catch(() => {}).finally(() => setLoading(false));
-  }, []);
 
   const dailyMissions = missions.filter(m => m.isDaily);
   const allMissions = missions.filter(m => !m.isDaily);

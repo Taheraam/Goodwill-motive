@@ -29,3 +29,4 @@
  GET / 200 in 82ms (next.js: 10ms, application-code: 72ms)
  GET /login 200 in 47ms (next.js: 8ms, application-code: 38ms)
  GET /dashboard 200 in 44ms (next.js: 9ms, application-code: 35ms)
+✓ Compiled in 3.1s

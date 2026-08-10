@@ -6,20 +6,22 @@
   "workspaces": [
     "frontend-web",
     "frontend-mobile",
-    "backend"
+    "backend",
+    "packages/*"
   ],
   "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
     "dev:web": "npm run dev --workspace=frontend-web",
     "dev:mobile": "npm start --workspace=frontend-mobile",
-    "dev:backend": "npm run start:dev --workspace=backend",
-    "build:web": "npm run build --workspace=frontend-web",
-    "build:backend": "npm run build --workspace=backend",
-    "lint": "npm run lint --workspaces",
-    "typecheck": "npm run typecheck --workspaces"
+    "dev:backend": "npm run start:dev --workspace=backend"
   },
   "devDependencies": {
     "prettier": "^3.3.0",
-    "typescript": "^5.4.0"
+    "typescript": "^5.4.0",
+    "turbo": "latest"
   },
   "engines": {
     "node": ">=20.0.0",

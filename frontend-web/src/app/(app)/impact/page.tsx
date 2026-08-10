@@ -9,14 +9,18 @@ import { toast } from 'sonner';
 
 interface Campaign { id: string; name: string; description?: string; sponsor?: string; currentAmount: number; targetAmount: number; unit: string; isActive: boolean; }
 
+import { useQuery } from '@tanstack/react-query';
+
 export default function ImpactPage() {
   const { user } = useAuthStore();
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    api.get('/impact/campaigns').then(r => setCampaigns(r.data)).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+  const { data: campaigns = [], isLoading: loading } = useQuery({
+    queryKey: ['campaigns'],
+    queryFn: async () => {
+      const res = await api.get('/impact/campaigns');
+      return res.data as Campaign[];
+    },
+  });
 
   const personalMeals = user?.contributionScore ? Math.floor(user.contributionScore / 100) : 0;
   const activeCampaigns = campaigns.filter(c => c.isActive);

@@ -299,9 +299,9 @@ export default function LandingPage() {
               <span className="font-display font-bold text-[#1B4332]">Goodwill Motive</span>
             </div>
             <div className="flex gap-6 text-sm">
-              <a href="/about" className="text-[#1B4332]/40 hover:text-[#1B4332] transition-colors">About</a>
-              <a href="/privacy" className="text-[#1B4332]/40 hover:text-[#1B4332] transition-colors">Privacy</a>
-              <a href="/terms" className="text-[#1B4332]/40 hover:text-[#1B4332] transition-colors">Terms</a>
+              <Link href="/about" className="text-[#1B4332]/40 hover:text-[#1B4332] transition-colors">About</Link>
+              <Link href="/privacy" className="text-[#1B4332]/40 hover:text-[#1B4332] transition-colors">Privacy</Link>
+              <Link href="/terms" className="text-[#1B4332]/40 hover:text-[#1B4332] transition-colors">Terms</Link>
               <Link href="/admin/login" className="px-3 py-1 rounded-full border border-[#40916C]/20 text-[#40916C]/60 hover:text-[#40916C] hover:border-[#40916C]/40 text-xs font-medium transition-all">Admin →</Link>
             </div>
           </div>
