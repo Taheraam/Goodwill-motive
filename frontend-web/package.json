@@ -9,7 +9,6 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@goodwill/shared": "*",
     "@tanstack/react-query": "^5.100.9",
     "axios": "^1.16.0",
     "next": "16.2.6",

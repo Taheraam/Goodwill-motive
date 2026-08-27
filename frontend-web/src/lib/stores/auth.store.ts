@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import api from '@/lib/api';
 import { toast } from 'sonner';
-import { UserProfile } from '@goodwill/shared';
+import { UserProfile } from '@/types/shared';
 
 interface AuthState {
   user: UserProfile | null;
