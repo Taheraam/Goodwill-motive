@@ -27,13 +27,5 @@
   "engines": {
     "node": ">=20.0.0",
     "npm": ">=10.0.0"
-  },
-  "dependencies": {
-    "mongodb": "^7.6.0"
-  },
-  "optionalDependencies": {
-    "@tailwindcss/oxide-wasm32-wasi": "^4.3.0",
-    "@tailwindcss/oxide-linux-x64-gnu": "^4.3.0",
-    "@tailwindcss/oxide-linux-x64-musl": "^4.3.0"
   }
 }
