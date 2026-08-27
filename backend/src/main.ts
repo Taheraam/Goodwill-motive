@@ -7,8 +7,14 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const logger = new Logger('Bootstrap');
 
+  const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
+
   app.enableCors({
-    origin: process.env.FRONTEND_URL ?? 'http://localhost:3000',
+    origin: [
+      frontendUrl,
+      /\.vercel\.app$/,
+      'http://localhost:3000',
+    ],
     credentials: true,
   });
 
@@ -24,8 +30,8 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api');
 
-  const port = process.env.PORT ?? 3001;
-  await app.listen(port);
-  logger.log(`Goodwill Motive API running on http://localhost:${port}/api`);
+  const port = Number(process.env.PORT) || 3001;
+  await app.listen(port, '0.0.0.0');
+  logger.log(`Goodwill Motive API running on http://0.0.0.0:${port}/api`);
 }
 bootstrap();

@@ -1,9 +1,6 @@
-import { Controller, Get, Post, Param, Request } from '@nestjs/common';
+import { Controller, Get, Post, Param } from '@nestjs/common';
 import { CommunitiesService } from './communities.service';
-
-interface AuthenticatedRequest {
-  user: { sub: string };
-}
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @Controller('communities')
 export class CommunitiesController {
@@ -20,12 +17,12 @@ export class CommunitiesController {
   }
 
   @Post(':id/join')
-  async join(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
-    return this.communitiesService.join(id, req.user.sub);
+  async join(@Param('id') id: string, @CurrentUser('sub') userId: string) {
+    return this.communitiesService.join(id, userId);
   }
 
   @Post(':id/leave')
-  async leave(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
-    return this.communitiesService.leave(id, req.user.sub);
+  async leave(@Param('id') id: string, @CurrentUser('sub') userId: string) {
+    return this.communitiesService.leave(id, userId);
   }
 }

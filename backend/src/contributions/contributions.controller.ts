@@ -1,16 +1,14 @@
-import { Controller, Get, Request } from '@nestjs/common';
+import { Controller, Get } from '@nestjs/common';
 import { ContributionsService } from './contributions.service';
-
-interface AuthenticatedRequest {
-  user: { sub: string };
-}
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @Controller('contributions')
 export class ContributionsController {
   constructor(private readonly contributionsService: ContributionsService) {}
 
   @Get('me')
-  async myStats(@Request() req: AuthenticatedRequest) {
-    return this.contributionsService.getUserStats(req.user.sub);
+  async myStats(@CurrentUser('sub') userId: string) {
+    return this.contributionsService.getUserStats(userId);
   }
 }
+

@@ -1,11 +1,8 @@
-import { Controller, Get, Post, Param, Body, Request, Query } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, Query } from '@nestjs/common';
 import { QuizzesService } from './quizzes.service';
 import { SubmitQuizAttemptDto } from './dto/quizzes.dto';
 import { Public } from '../auth/public.decorator';
-
-interface AuthenticatedRequest {
-  user: { sub: string };
-}
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @Controller('quizzes')
 export class QuizzesController {
@@ -27,8 +24,8 @@ export class QuizzesController {
   async attempt(
     @Param('id') id: string,
     @Body() dto: SubmitQuizAttemptDto,
-    @Request() req: AuthenticatedRequest,
+    @CurrentUser('sub') userId: string,
   ) {
-    return this.quizzesService.attempt(req.user.sub, id, dto.answers);
+    return this.quizzesService.attempt(userId, id, dto.answers);
   }
 }

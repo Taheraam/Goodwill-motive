@@ -1,26 +1,15 @@
 import { create } from 'zustand';
 import api from '@/lib/api';
 import { toast } from 'sonner';
-
-interface User {
-  id: string;
-  username: string;
-  email: string;
-  avatarUrl?: string;
-  contributionScore: number;
-  streakCount: number;
-  longestStreak: number;
-  reputationScore: number;
-  role: string;
-}
+import { UserProfile } from '@goodwill/shared';
 
 interface AuthState {
-  user: User | null;
+  user: UserProfile | null;
   accessToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
-  setAuth: (user: User, token: string) => void;
+  setAuth: (user: UserProfile, token: string) => void;
   logout: () => void;
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, username: string) => Promise<void>;

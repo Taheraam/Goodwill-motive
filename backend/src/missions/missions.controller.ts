@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Param, Request, UnauthorizedException } from '@nestjs/common';
+import { Controller, Get, Post, Param } from '@nestjs/common';
 import { MissionsService } from './missions.service';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @Controller('missions')
 export class MissionsController {
@@ -16,9 +17,8 @@ export class MissionsController {
   }
 
   @Post(':id/complete')
-  async complete(@Param('id') id: string, @Request() req: any) {
-    const userId = req.user?.sub;
-    if (!userId) throw new UnauthorizedException();
+  async complete(@Param('id') id: string, @CurrentUser('sub') userId: string) {
     return this.missionsService.complete(id, userId);
   }
 }
+

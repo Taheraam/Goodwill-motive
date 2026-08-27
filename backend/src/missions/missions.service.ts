@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ContributionsService } from '../contributions/contributions.service';
+import { ACTION_TYPES } from '@goodwill/shared';
 
 @Injectable()
 export class MissionsService {
@@ -32,7 +33,7 @@ export class MissionsService {
       data: { status: 'completed', completedAt: new Date() },
     });
 
-    await this.contributions.record(userId, 'mission_complete', mission.contributionReward);
+    await this.contributions.record(userId, ACTION_TYPES.MISSION_COMPLETE, mission.contributionReward);
 
     return { completed: true, contributionAwarded: mission.contributionReward };
   }

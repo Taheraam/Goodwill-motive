@@ -1,12 +1,9 @@
-import { Controller, Post, Get, Body, Request, Query, Res, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Get, Body, Query, Res, HttpCode, HttpStatus } from '@nestjs/common';
 import { Response } from 'express';
 import { AuthService } from './auth.service';
 import { Public } from './public.decorator';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { SignupDto, LoginDto, OAuthDto, RefreshTokenDto } from './dto/auth.dto';
-
-interface AuthenticatedRequest {
-  user: { sub: string };
-}
 
 @Controller('auth')
 export class AuthController {
@@ -68,7 +65,7 @@ export class AuthController {
   }
 
   @Get('me')
-  async me(@Request() req: AuthenticatedRequest) {
-    return this.authService.me(req.user.sub);
+  async me(@CurrentUser('sub') userId: string) {
+    return this.authService.me(userId);
   }
 }

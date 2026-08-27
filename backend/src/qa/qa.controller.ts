@@ -1,11 +1,8 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, Request } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, Query } from '@nestjs/common';
 import { QaService } from './qa.service';
 import { CreateQuestionDto, CreateAnswerDto } from './dto/qa.dto';
 import { Public } from '../auth/public.decorator';
-
-interface AuthenticatedRequest {
-  user: { sub: string };
-}
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @Controller()
 export class QaController {
@@ -18,8 +15,8 @@ export class QaController {
   }
 
   @Post('questions')
-  async createQuestion(@Body() dto: CreateQuestionDto, @Request() req: AuthenticatedRequest) {
-    return this.qaService.createQuestion(req.user.sub, dto);
+  async createQuestion(@Body() dto: CreateQuestionDto, @CurrentUser('sub') userId: string) {
+    return this.qaService.createQuestion(userId, dto);
   }
 
   @Get('questions/:id')
@@ -28,12 +25,12 @@ export class QaController {
   }
 
   @Post('answers')
-  async createAnswer(@Body() dto: CreateAnswerDto, @Request() req: AuthenticatedRequest) {
-    return this.qaService.createAnswer(req.user.sub, dto);
+  async createAnswer(@Body() dto: CreateAnswerDto, @CurrentUser('sub') userId: string) {
+    return this.qaService.createAnswer(userId, dto);
   }
 
   @Patch('answers/:id/accept')
-  async acceptAnswer(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
-    return this.qaService.acceptAnswer(id, req.user.sub);
+  async acceptAnswer(@Param('id') id: string, @CurrentUser('sub') userId: string) {
+    return this.qaService.acceptAnswer(id, userId);
   }
 }
