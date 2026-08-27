@@ -2,6 +2,7 @@
   "name": "goodwill-motive",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "npm@10.8.2",
   "description": "Goodwill Motive — Cross-platform humanitarian social-learning ecosystem",
   "workspaces": [
     "frontend-web",
