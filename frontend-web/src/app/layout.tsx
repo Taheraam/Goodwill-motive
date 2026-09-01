@@ -15,6 +15,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="scroll-smooth">
+      <head>
+        <link rel="preconnect" href="https://fonts.cdnfonts.com" />
+        <link href="https://fonts.cdnfonts.com/css/coolvetica-2" rel="stylesheet" />
+      </head>
       <body className="min-h-full bg-[var(--color-background)] text-zinc-900 antialiased">
         <Providers>
           {children}
