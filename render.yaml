@@ -3,7 +3,7 @@ services:
     name: goodwill-backend
     runtime: node
     plan: free
-    buildCommand: npm install && npm --workspace=@goodwill/shared run build && npm --workspace=backend run build
+    buildCommand: npm install --include=dev && npm --workspace=@goodwill/shared run build && npm --workspace=backend run build
     startCommand: npm --workspace=backend run start:prod
     healthCheckPath: /api
     envVars:
