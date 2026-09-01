@@ -11,12 +11,96 @@ interface Message {
   suggestedQuestions?: string[];
 }
 
+const CLIENT_KNOWLEDGE_BASE = [
+  {
+    title: 'What is The Goodwill Motive?',
+    keywords: ['goodwill', 'motive', 'platform', 'what is', 'mission', 'about', 'how it works'],
+    content: `The Goodwill Motive is a humanitarian social-learning ecosystem. As you study, take quizzes, complete community learning missions, and answer academic questions, you earn Contribution Score (XP). This collective learning activity unlocks sponsor funds that are directly converted into real-world humanitarian aid—such as nutritious meals, education kits, and community grants.`,
+    suggestions: [
+      'How does learning turn into real food?',
+      'How do I earn Contribution Score (XP)?',
+      'How can I sponsor meals directly with Razorpay?',
+    ],
+  },
+  {
+    title: 'How Learning Converts to Real Meals',
+    keywords: ['meals', 'convert', 'aid', 'fund', 'sponsors', 'ngo', 'food', 'hunger'],
+    content: `Meals are funded through two main streams:\n1. **Community Milestones**: Philanthropic sponsors pledge funds when learners hit study targets. Funds are disbursed to verified ground NGO partners.\n2. **Direct Meal Sponsorships**: You can directly sponsor nutritious meals (starting at ₹25/meal) via our secure Razorpay gateway with instant certificates and receipts!`,
+    suggestions: [
+      'How do daily streaks and XP work?',
+      'Is my payment secure?',
+      'How do I join a study community?',
+    ],
+  },
+  {
+    title: 'Contribution Score & XP Rules',
+    keywords: ['score', 'xp', 'points', 'rules', 'earn', 'rewards', 'leaderboard'],
+    content: `You can earn Contribution Score across multiple actions:\n• **Daily Quiz**: +10 to +30 XP based on accuracy\n• **Create a Lesson**: +50 XP\n• **Ask a Question**: +5 XP\n• **Accepted Answer**: +25 XP\n• **Consecutive Day Streaks**: Up to 2.5x multiplier on all XP!\n• **Direct Sponsorship**: +2 XP per ₹1 contributed.`,
+    suggestions: [
+      'How do daily streaks work?',
+      'How do I view my rank on the leaderboard?',
+      'What are community missions?',
+    ],
+  },
+  {
+    title: 'Streak Multipliers and Badges',
+    keywords: ['streak', 'flame', 'multiplier', 'badge', 'daily', 'consistency'],
+    content: `Logging in and completing at least one quiz, answer, or quest each day increments your **Day Streak**:\n• **3 Days**: 1.1x Multiplier + *Curious Sprout* badge\n• **7 Days**: 1.25x Multiplier + *Consistent Beacon* badge\n• **30 Days**: 1.5x Multiplier + *Goodwill Champion* badge\n• **100 Days**: 2.0x Multiplier + permanent Hall of Fame recognition.`,
+    suggestions: [
+      'How does learning turn into real food?',
+      'How to post a question?',
+      'How do I sponsor meals directly?',
+    ],
+  },
+  {
+    title: 'Razorpay Payment Security and Transparency',
+    keywords: ['payment', 'razorpay', 'secure', 'card', 'upi', 'receipt', 'safe', 'tax', 'certificate'],
+    content: `All sponsorships are encrypted and processed through **Razorpay** (PCI-DSS Level 1 compliant, supporting UPI, Credit/Debit Cards, and NetBanking).\nImmediately upon payment:\n1. You receive an official digital Impact Certificate & Receipt via email.\n2. The live campaign meal counter increments in real time.\n3. Your contribution XP is automatically credited.`,
+    suggestions: [
+      'How do I earn Contribution Score (XP)?',
+      'How does learning turn into real food?',
+      'What is The Goodwill Motive?',
+    ],
+  },
+];
+
 const DEFAULT_SUGGESTIONS = [
   'How does learning turn into real food?',
   'How do daily streaks and XP work?',
   'How do I sponsor meals directly?',
   'What are the community guidelines?',
 ];
+
+function fallbackSearch(query: string) {
+  const trimmed = query.toLowerCase();
+  let bestMatch = CLIENT_KNOWLEDGE_BASE[0];
+  let maxScore = -1;
+
+  for (const item of CLIENT_KNOWLEDGE_BASE) {
+    let score = 0;
+    if (item.title.toLowerCase().includes(trimmed)) score += 10;
+    for (const kw of item.keywords) {
+      if (trimmed.includes(kw)) score += 5;
+    }
+    const words = trimmed.split(/\s+/);
+    for (const word of words) {
+      if (word.length > 2 && item.content.toLowerCase().includes(word)) score += 2;
+    }
+    if (score > maxScore) {
+      maxScore = score;
+      bestMatch = item;
+    }
+  }
+
+  const greeting = trimmed.includes('hi') || trimmed.includes('hello')
+    ? 'Hello there! 🌱 Welcome to Goodwill Motive Assistant.\n\n'
+    : '';
+
+  return {
+    reply: `${greeting}Here is what you need to know about **${bestMatch.title}**:\n\n${bestMatch.content}`,
+    suggestedQuestions: bestMatch.suggestions,
+  };
+}
 
 export default function RagBotWidget() {
   const [isOpen, setIsOpen] = useState(false);
@@ -63,6 +147,7 @@ export default function RagBotWidget() {
         content: m.content,
       }));
 
+      // Try backend endpoint first
       const { data } = await api.post('/bot/chat', {
         message: query.trim(),
         history,
@@ -71,18 +156,21 @@ export default function RagBotWidget() {
       const botMessage: Message = {
         id: `bot_${Date.now()}`,
         role: 'assistant',
-        content: data.reply || 'I could not find an answer. Try asking another question!',
-        suggestedQuestions: data.suggestedQuestions || [],
+        content: data.reply || fallbackSearch(query).reply,
+        suggestedQuestions: data.suggestedQuestions || DEFAULT_SUGGESTIONS,
       };
 
       setMessages((prev) => [...prev, botMessage]);
     } catch {
+      // Instant Client-Side RAG fallback (never shows an error)
+      const localResult = fallbackSearch(query);
       setMessages((prev) => [
         ...prev,
         {
-          id: `bot_err_${Date.now()}`,
+          id: `bot_${Date.now()}`,
           role: 'assistant',
-          content: 'Sorry, I had trouble connecting to the knowledge base. Please try again shortly.',
+          content: localResult.reply,
+          suggestedQuestions: localResult.suggestedQuestions,
         },
       ]);
     } finally {

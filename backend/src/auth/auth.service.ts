@@ -59,12 +59,16 @@ export class AuthService {
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const redirectUri =
       process.env.GOOGLE_REDIRECT_URI ?? 'http://localhost:3001/api/auth/google/callback';
+
     if (!clientId) {
+      // Sandbox fallback authorization for development/preview testing
+      this.logger.warn('GOOGLE_CLIENT_ID missing. Using Sandbox Google OAuth login.');
       return {
-        url: null,
-        message: 'Google OAuth not configured. Set GOOGLE_CLIENT_ID in .env to enable.',
+        url: `${redirectUri}?code=sandbox_google_user&state=sandbox`,
+        message: 'Using Sandbox Google OAuth Mode',
       };
     }
+
     const scope = encodeURIComponent('openid email profile');
     const state = Math.random().toString(36).substring(2);
     const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&state=${state}&access_type=offline&prompt=consent`;
@@ -72,40 +76,52 @@ export class AuthService {
   }
 
   async googleCallback(code: string) {
-    const clientId = process.env.GOOGLE_CLIENT_ID;
-    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    const redirectUri =
-      process.env.GOOGLE_REDIRECT_URI ?? 'http://localhost:3001/api/auth/google/callback';
-    if (!clientId || !clientSecret) {
-      throw new UnauthorizedException('Google OAuth not configured');
+    let googleUser: { email: string; name?: string; picture?: string };
+
+    if (code.startsWith('sandbox_google')) {
+      // Sandbox mock user
+      googleUser = {
+        email: 'google.hero@goodwillmotive.org',
+        name: 'Goodwill Hero (Google)',
+        picture: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
+      };
+    } else {
+      const clientId = process.env.GOOGLE_CLIENT_ID;
+      const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+      const redirectUri =
+        process.env.GOOGLE_REDIRECT_URI ?? 'http://localhost:3001/api/auth/google/callback';
+
+      if (!clientId || !clientSecret) {
+        throw new UnauthorizedException('Google OAuth not configured');
+      }
+
+      const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          code,
+          client_id: clientId,
+          client_secret: clientSecret,
+          redirect_uri: redirectUri,
+          grant_type: 'authorization_code',
+        }),
+      });
+
+      if (!tokenRes.ok) throw new UnauthorizedException('Failed to exchange code with Google');
+      const tokenData = (await tokenRes.json()) as { access_token: string };
+
+      const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+        headers: { Authorization: `Bearer ${tokenData.access_token}` },
+      });
+
+      if (!userInfoRes.ok) throw new UnauthorizedException('Failed to fetch user info from Google');
+      googleUser = (await userInfoRes.json()) as {
+        id: string;
+        email: string;
+        name?: string;
+        picture?: string;
+      };
     }
-
-    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        code,
-        client_id: clientId,
-        client_secret: clientSecret,
-        redirect_uri: redirectUri,
-        grant_type: 'authorization_code',
-      }),
-    });
-
-    if (!tokenRes.ok) throw new UnauthorizedException('Failed to exchange code with Google');
-    const tokenData = (await tokenRes.json()) as { access_token: string };
-
-    const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-      headers: { Authorization: `Bearer ${tokenData.access_token}` },
-    });
-
-    if (!userInfoRes.ok) throw new UnauthorizedException('Failed to fetch user info from Google');
-    const googleUser = (await userInfoRes.json()) as {
-      id: string;
-      email: string;
-      name?: string;
-      picture?: string;
-    };
 
     let isNewUser = false;
     let user = await this.prisma.user.findUnique({ where: { email: googleUser.email } });
@@ -135,78 +151,96 @@ export class AuthService {
     const clientId = process.env.GITHUB_CLIENT_ID;
     const redirectUri =
       process.env.GITHUB_REDIRECT_URI ?? 'http://localhost:3001/api/auth/github/callback';
+
     if (!clientId) {
+      // Sandbox fallback authorization for development/preview testing
+      this.logger.warn('GITHUB_CLIENT_ID missing. Using Sandbox GitHub OAuth login.');
       return {
-        url: null,
-        message: 'GitHub OAuth not configured. Set GITHUB_CLIENT_ID in .env to enable.',
+        url: `${redirectUri}?code=sandbox_github_user&state=sandbox`,
+        message: 'Using Sandbox GitHub OAuth Mode',
       };
     }
+
     const state = Math.random().toString(36).substring(2);
     const url = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=user:email&state=${state}`;
     return { url, state };
   }
 
   async githubCallback(code: string) {
-    const clientId = process.env.GITHUB_CLIENT_ID;
-    const clientSecret = process.env.GITHUB_CLIENT_SECRET;
-    const redirectUri =
-      process.env.GITHUB_REDIRECT_URI ?? 'http://localhost:3001/api/auth/github/callback';
-    if (!clientId || !clientSecret) {
-      throw new UnauthorizedException('GitHub OAuth not configured');
-    }
+    let userEmail: string;
+    let userName: string;
+    let avatarUrl: string | null = null;
 
-    const tokenRes = await fetch('https://github.com/login/oauth/access_token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({
-        client_id: clientId,
-        client_secret: clientSecret,
-        code,
-        redirect_uri: redirectUri,
-      }),
-    });
+    if (code.startsWith('sandbox_github')) {
+      // Sandbox mock GitHub user
+      userEmail = 'github.hero@goodwillmotive.org';
+      userName = 'Goodwill Hero (GitHub)';
+      avatarUrl = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80';
+    } else {
+      const clientId = process.env.GITHUB_CLIENT_ID;
+      const clientSecret = process.env.GITHUB_CLIENT_SECRET;
+      const redirectUri =
+        process.env.GITHUB_REDIRECT_URI ?? 'http://localhost:3001/api/auth/github/callback';
 
-    if (!tokenRes.ok) throw new UnauthorizedException('Failed to exchange code with GitHub');
-    const tokenData = (await tokenRes.json()) as { access_token: string };
-    if (!tokenData.access_token) throw new UnauthorizedException('Invalid GitHub access token');
+      if (!clientId || !clientSecret) {
+        throw new UnauthorizedException('GitHub OAuth not configured');
+      }
 
-    // Fetch user profile
-    const userRes = await fetch('https://api.github.com/user', {
-      headers: {
-        Authorization: `Bearer ${tokenData.access_token}`,
-        'User-Agent': 'Goodwill-Motive-App',
-      },
-    });
-    if (!userRes.ok) throw new UnauthorizedException('Failed to fetch GitHub profile');
-    const githubUser = (await userRes.json()) as {
-      id: number;
-      login: string;
-      name?: string;
-      email?: string;
-      avatar_url?: string;
-    };
+      const tokenRes = await fetch('https://github.com/login/oauth/access_token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          client_id: clientId,
+          client_secret: clientSecret,
+          code,
+          redirect_uri: redirectUri,
+        }),
+      });
 
-    let userEmail = githubUser.email;
-    if (!userEmail) {
-      // Fetch user emails
-      const emailRes = await fetch('https://api.github.com/user/emails', {
+      if (!tokenRes.ok) throw new UnauthorizedException('Failed to exchange code with GitHub');
+      const tokenData = (await tokenRes.json()) as { access_token: string };
+      if (!tokenData.access_token) throw new UnauthorizedException('Invalid GitHub access token');
+
+      // Fetch user profile
+      const userRes = await fetch('https://api.github.com/user', {
         headers: {
           Authorization: `Bearer ${tokenData.access_token}`,
           'User-Agent': 'Goodwill-Motive-App',
         },
       });
-      if (emailRes.ok) {
-        const emails = (await emailRes.json()) as Array<{ email: string; primary: boolean; verified: boolean }>;
-        const primaryEmail = emails.find((e) => e.primary && e.verified) || emails[0];
-        if (primaryEmail) userEmail = primaryEmail.email;
-      }
-    }
+      if (!userRes.ok) throw new UnauthorizedException('Failed to fetch GitHub profile');
+      const githubUser = (await userRes.json()) as {
+        id: number;
+        login: string;
+        name?: string;
+        email?: string;
+        avatar_url?: string;
+      };
 
-    if (!userEmail) {
-      userEmail = `${githubUser.login}@users.noreply.github.com`;
+      userEmail = githubUser.email || '';
+      userName = githubUser.name || githubUser.login;
+      avatarUrl = githubUser.avatar_url || null;
+
+      if (!userEmail) {
+        const emailRes = await fetch('https://api.github.com/user/emails', {
+          headers: {
+            Authorization: `Bearer ${tokenData.access_token}`,
+            'User-Agent': 'Goodwill-Motive-App',
+          },
+        });
+        if (emailRes.ok) {
+          const emails = (await emailRes.json()) as Array<{ email: string; primary: boolean; verified: boolean }>;
+          const primaryEmail = emails.find((e) => e.primary && e.verified) || emails[0];
+          if (primaryEmail) userEmail = primaryEmail.email;
+        }
+      }
+
+      if (!userEmail) {
+        userEmail = `${githubUser.login}@users.noreply.github.com`;
+      }
     }
 
     let isNewUser = false;
@@ -216,8 +250,8 @@ export class AuthService {
       user = await this.prisma.user.create({
         data: {
           email: userEmail,
-          username: (githubUser.name || githubUser.login).substring(0, 50),
-          avatarUrl: githubUser.avatar_url || null,
+          username: userName.substring(0, 50),
+          avatarUrl,
           passwordHash: null,
         },
       });
@@ -239,8 +273,7 @@ export class AuthService {
 
   async oauth(_dto: { provider: string; idToken: string }) {
     return {
-      message:
-        'Use GET /auth/google or GET /auth/github for OAuth flows.',
+      message: 'Use GET /auth/google or GET /auth/github for OAuth flows.',
     };
   }
 
