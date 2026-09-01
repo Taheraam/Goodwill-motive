@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from 'sonner';
 import Providers from './providers';
+import RagBotWidget from '@/components/RagBotWidget';
 
 export const metadata: Metadata = {
   title: 'Goodwill Motive — Learn Together. Help Others. Change Real Lives.',
@@ -22,6 +23,7 @@ export default function RootLayout({
       <body className="min-h-full bg-[var(--color-background)] text-zinc-900 antialiased">
         <Providers>
           {children}
+          <RagBotWidget />
           <Toaster
             position="top-right"
             toastOptions={{
@@ -38,4 +40,4 @@ export default function RootLayout({
       </body>
     </html>
   );
-}
+}

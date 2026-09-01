@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/stores/auth.store';
 import api from '@/lib/api';
-import { GoogleIcon, EyeIcon, EyeOffIcon, ArrowRightIcon, ShieldIcon } from '@/lib/icons';
+import { GoogleIcon, GithubIcon, EyeIcon, EyeOffIcon, ArrowRightIcon, ShieldIcon } from '@/lib/icons';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -30,6 +30,19 @@ export default function LoginPage() {
       }
     } catch {
       setError('Google OAuth not available');
+    }
+  };
+
+  const handleGithub = async () => {
+    try {
+      const { data } = await api.get('/auth/github');
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        setError(data.message || 'GitHub OAuth not configured yet');
+      }
+    } catch {
+      setError('GitHub OAuth not available');
     }
   };
 
@@ -114,13 +127,25 @@ export default function LoginPage() {
           <div className="flex-1 h-px bg-[rgba(64,145,108,0.15)]" />
         </div>
 
-        <button
-          onClick={handleGoogle}
-          className="w-full py-4 border-2 border-[rgba(64,145,108,0.15)] bg-white/60 backdrop-blur-sm rounded-xl hover:bg-white/80 hover:border-[rgba(64,145,108,0.25)] hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 flex items-center justify-center gap-3 text-[#1B4332] font-medium"
-        >
-          <GoogleIcon size={20} />
-          Continue with Google
-        </button>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={handleGoogle}
+            className="w-full py-3.5 border-2 border-[rgba(64,145,108,0.15)] bg-white/60 backdrop-blur-sm rounded-xl hover:bg-white/80 hover:border-[rgba(64,145,108,0.25)] hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 flex items-center justify-center gap-2 text-[#1B4332] font-semibold text-xs"
+          >
+            <GoogleIcon size={18} />
+            Google
+          </button>
+
+          <button
+            type="button"
+            onClick={handleGithub}
+            className="w-full py-3.5 border-2 border-[rgba(64,145,108,0.15)] bg-white/60 backdrop-blur-sm rounded-xl hover:bg-white/80 hover:border-[rgba(64,145,108,0.25)] hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 flex items-center justify-center gap-2 text-[#1B4332] font-semibold text-xs"
+          >
+            <GithubIcon size={18} />
+            GitHub
+          </button>
+        </div>
 
         <p className="text-center text-sm text-[#40916C]/70">
           New to Goodwill Motive?{' '}

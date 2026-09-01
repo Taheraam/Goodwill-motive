@@ -34,6 +34,7 @@ model User {
   impactRecords   ImpactRecord[]
   reportsMade     Report[] @relation("Reporter")
   reportsReceived Report[] @relation("TargetUser")
+  payments        Payment[]
 
   @@index([contributionScore])
   @@map("users")
@@ -283,6 +284,7 @@ model ImpactCampaign {
   createdAt        DateTime  @default(now()) @map("created_at")
 
   impactRecords ImpactRecord[]
+  payments      Payment[]
 
   @@index([isActive, createdAt])
   @@map("impact_campaigns")
@@ -320,3 +322,28 @@ model Report {
   @@index([status])
   @@map("reports")
 }
+
+model Payment {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId         String?  @map("user_id") @db.ObjectId
+  campaignId     String?  @map("campaign_id") @db.ObjectId
+  orderId        String   @unique @map("order_id")
+  paymentId      String?  @map("payment_id")
+  amount         Int      // In paise (e.g. 50000 = Rs 500)
+  currency       String   @default("INR")
+  status         String   @default("created") // created, success, failed
+  mealsSponsored Int      @default(0) @map("meals_sponsored")
+  donorName      String?  @map("donor_name")
+  donorEmail     String?  @map("donor_email")
+  metadata       Json     @default("{}")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  user     User?           @relation(fields: [userId], references: [id])
+  campaign ImpactCampaign? @relation(fields: [campaignId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@map("payments")
+}
+

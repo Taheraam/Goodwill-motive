@@ -46,6 +46,29 @@ export class AuthController {
   }
 
   @Public()
+  @Get('github')
+  async githubAuth() {
+    return this.authService.githubAuth();
+  }
+
+  @Public()
+  @Get('github/callback')
+  async githubCallback(@Query('code') code: string, @Res() res: Response) {
+    const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
+    if (!code) {
+      return res.redirect(`${frontendUrl}/login?error=github_oauth_failed`);
+    }
+    try {
+      const result = await this.authService.githubCallback(code);
+      return res.redirect(
+        `${frontendUrl}/oauth/callback?userId=${result.user.id}&token=${result.tokens.accessToken}`,
+      );
+    } catch {
+      return res.redirect(`${frontendUrl}/login?error=github_oauth_failed`);
+    }
+  }
+
+  @Public()
   @Post('oauth')
   async oauth(@Body() dto: OAuthDto) {
     return this.authService.oauth(dto);
