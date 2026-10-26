@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { JwtModule } from '@nestjs/jwt';
 import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
@@ -20,6 +20,7 @@ import { ModerationModule } from './moderation/moderation.module';
 import { PaymentsModule } from './payments/payments.module';
 import { RagBotModule } from './rag-bot/rag-bot.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
+import { RolesGuard } from './auth/roles.guard';
 
 @Module({
   imports: [
@@ -33,10 +34,14 @@ import { JwtAuthGuard } from './auth/jwt-auth.guard';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('JWT_SECRET', 'dev-secret-change-in-production'),
-        signOptions: { expiresIn: '15m' },
-      }),
+      useFactory: (config: ConfigService) => {
+        // Fail fast instead of silently signing tokens with a hardcoded, public fallback secret.
+        const secret = config.get<string>('JWT_SECRET');
+        if (!secret || secret.length < 32) {
+          throw new Error('JWT_SECRET must be set and at least 32 characters long');
+        }
+        return { secret, signOptions: { expiresIn: '15m' } };
+      },
       global: true,
     }),
     PrismaModule,
@@ -57,10 +62,11 @@ import { JwtAuthGuard } from './auth/jwt-auth.guard';
   controllers: [AppController],
   providers: [
     AppService,
-    {
-      provide: APP_GUARD,
-      useClass: JwtAuthGuard,
-    },
+    // Global guards run in this order: rate limit → authenticate → authorize.
+    // ThrottlerModule alone does nothing; the guard is what actually enforces the limit.
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
   ],
 })
 export class AppModule {}
