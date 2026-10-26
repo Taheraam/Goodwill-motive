@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend — build, typecheck, test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build --workspace=@goodwill/shared
+      - run: npm run build --workspace=backend
+      - run: npm run typecheck --workspace=backend
+      - run: npm test --workspace=backend
+      - run: npm run test:e2e --workspace=backend
+
+  web:
+    name: Web — typecheck, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck --workspace=frontend-web
+      - run: npm run build --workspace=frontend-web
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+
+  security:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      # Fails the build on any *critical* advisory in production deps of the API and web app.
+      - run: npm audit --omit=dev --audit-level=critical --workspace=backend --workspace=frontend-web
+
+  docker:
+    name: Docker image builds
+    runs-on: ubuntu-latest
+    needs: backend
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -f backend/Dockerfile -t goodwill-api:${{ github.sha }} .
