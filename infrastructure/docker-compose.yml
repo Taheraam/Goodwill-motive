@@ -1,31 +1,45 @@
+# Local stack: MongoDB (single-node replica set) + the API.
+#   docker compose -f infrastructure/docker-compose.yml up --build
+#
+# Prisma's MongoDB connector needs a replica set for transactions (the contribution
+# engine uses $transaction), so a plain `mongod` is not enough.
+# From your host machine, connect with:
+#   mongodb://localhost:27017/goodwillmotive?directConnection=true
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: goodwill_postgres
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: goodwillmotive
+  mongo:
+    image: mongo:7
+    command: ["--replSet", "rs0", "--bind_ip_all"]
     ports:
-      - "5433:5432"
+      - "27017:27017"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - mongo_data:/data/db
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      # Initiates the replica set on first boot, then reports healthy once it is PRIMARY.
+      test: >
+        mongosh --quiet --eval "try { rs.status().ok } catch (e) { rs.initiate({_id:'rs0', members:[{_id:0, host:'mongo:27017'}]}).ok }"
+      interval: 5s
+      timeout: 10s
+      retries: 30
 
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: goodwill_pgadmin
+  api:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    env_file:
+      - path: ../backend/.env
+        required: false
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@goodwillmotive.com
-      PGADMIN_DEFAULT_PASSWORD: admin
+      NODE_ENV: development
+      PORT: 3001
+      DATABASE_URL: mongodb://mongo:27017/goodwillmotive?replicaSet=rs0
+      JWT_SECRET: ${JWT_SECRET:-local-dev-only-secret-change-me-0123456789}
+      FRONTEND_URL: http://localhost:3000
+      ALLOW_OAUTH_SANDBOX: "true"
     ports:
-      - "5050:80"
+      - "3001:3001"
     depends_on:
-      - postgres
+      mongo:
+        condition: service_healthy
 
 volumes:
-  postgres_data:
+  mongo_data:
