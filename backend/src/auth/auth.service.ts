@@ -179,13 +179,20 @@ export class AuthService {
         grant_type: 'authorization_code',
       }),
     });
-    if (!tokenRes.ok) throw new UnauthorizedException('Failed to exchange code with Google');
+    if (!tokenRes.ok) {
+      // Google's error body (e.g. invalid_client, redirect_uri_mismatch) contains no secrets
+      // and is the fastest way to diagnose a misconfigured client.
+      const reason = (await tokenRes.text()).slice(0, 300);
+      throw new UnauthorizedException(`Failed to exchange code with Google (${tokenRes.status}): ${reason}`);
+    }
     const tokenData = (await tokenRes.json()) as { access_token: string };
 
     const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
       headers: { Authorization: `Bearer ${tokenData.access_token}` },
     });
-    if (!userInfoRes.ok) throw new UnauthorizedException('Failed to fetch user info from Google');
+    if (!userInfoRes.ok) {
+      throw new UnauthorizedException(`Failed to fetch user info from Google (${userInfoRes.status})`);
+    }
     const g = (await userInfoRes.json()) as {
       email: string;
       verified_email?: boolean;
@@ -215,9 +222,12 @@ export class AuthService {
         redirect_uri: this.redirectUri('github'),
       }),
     });
-    if (!tokenRes.ok) throw new UnauthorizedException('Failed to exchange code with GitHub');
-    const tokenData = (await tokenRes.json()) as { access_token?: string };
-    if (!tokenData.access_token) throw new UnauthorizedException('Invalid GitHub access token');
+    if (!tokenRes.ok) throw new UnauthorizedException(`Failed to exchange code with GitHub (${tokenRes.status})`);
+    const tokenData = (await tokenRes.json()) as { access_token?: string; error?: string };
+    if (!tokenData.access_token) {
+      // GitHub answers 200 with {"error": "bad_verification_code" | "incorrect_client_credentials" ...}
+      throw new UnauthorizedException(`Invalid GitHub access token: ${tokenData.error ?? 'unknown error'}`);
+    }
 
     const headers = { Authorization: `Bearer ${tokenData.access_token}`, 'User-Agent': 'Goodwill-Motive-App' };
     const userRes = await fetch('https://api.github.com/user', { headers });

@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Query, Req, Res, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Get, Body, Query, Req, Res, HttpCode, HttpStatus, Logger } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
@@ -21,6 +21,8 @@ function readCookie(req: Request, name: string): string | undefined {
 
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(private readonly authService: AuthService) {}
 
   // Tighter limits than the global default: these are the brute-force targets.
@@ -108,7 +110,17 @@ export class AuthController {
 
     const cookieState = readCookie(req, STATE_COOKIE);
     res.clearCookie(STATE_COOKIE, { path: '/api/auth' });
-    if (!code || !this.authService.isValidOAuthState(state, cookieState)) return fail();
+
+    // Every failure is logged with its reason. Previously all failures were silent,
+    // so a broken production login gave no clue whether it was the state, the code or Google.
+    if (!code) {
+      this.logger.warn(`${provider} OAuth callback without code (provider error: ${req.query.error ?? 'none'})`);
+      return fail();
+    }
+    if (!this.authService.isValidOAuthState(state, cookieState)) {
+      this.logger.warn(`${provider} OAuth state mismatch (state cookie ${cookieState ? 'present' : 'missing'})`);
+      return fail();
+    }
 
     try {
       const { tokens } = await this.authService.oauthCallback(provider, code);
@@ -118,7 +130,8 @@ export class AuthController {
         refreshToken: tokens.refreshToken,
       });
       return res.redirect(`${frontendUrl}/oauth/callback#${fragment}`);
-    } catch {
+    } catch (err) {
+      this.logger.warn(`${provider} OAuth callback failed: ${(err as Error)?.message ?? err}`);
       return fail();
     }
   }
