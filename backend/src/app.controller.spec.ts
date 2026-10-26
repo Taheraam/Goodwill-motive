@@ -14,9 +14,9 @@ describe('AppController', () => {
     appController = app.get<AppController>(AppController);
   });
 
-  describe('root', () => {
-    it('should return "Hello World!"', () => {
-      expect(appController.getHello()).toBe('Hello World!');
-    });
+  // The Nest scaffold test still expected "Hello World!" and had been failing silently,
+  // because CI never ran. GET /api is also Render's health check, so its shape matters.
+  it('returns a health payload', () => {
+    expect(appController.getHello()).toMatchObject({ status: 'ok', message: expect.any(String) });
   });
 });
