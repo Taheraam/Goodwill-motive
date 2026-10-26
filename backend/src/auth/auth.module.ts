@@ -1,14 +1,11 @@
 import { Module } from '@nestjs/common';
-import { PassportModule } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtAuthGuard } from './jwt-auth.guard';
 
+// JwtModule is registered globally in AppModule. Passport was never used for
+// validation (JwtAuthGuard verifies tokens directly), so it has been removed.
 @Module({
-  imports: [
-    PassportModule.register({ defaultStrategy: 'jwt' }),
-    // JwtModule is registered globally in AppModule — no need to re-register here
-  ],
   controllers: [AuthController],
   providers: [AuthService, JwtAuthGuard],
   exports: [AuthService, JwtAuthGuard],
