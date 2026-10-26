@@ -78,9 +78,7 @@ export default function SponsorModal({
       // 1. Create Order on Backend
       const { data: orderData } = await api.post('/payments/create-order', {
         amount: currentAmount,
-        currency: 'INR',
         campaignId,
-        mealsSponsored: currentMeals,
         donorName: donorName || 'Generous Donor',
         donorEmail: donorEmail || undefined,
       });
@@ -104,8 +102,6 @@ export default function SponsorModal({
               razorpayOrderId: response.razorpay_order_id,
               razorpayPaymentId: response.razorpay_payment_id,
               razorpaySignature: response.razorpay_signature,
-              donorName,
-              donorEmail,
             });
           },
           modal: {
@@ -124,8 +120,6 @@ export default function SponsorModal({
           razorpayOrderId: orderData.orderId,
           razorpayPaymentId: mockPaymentId,
           razorpaySignature: 'dev_mock_signature',
-          donorName,
-          donorEmail,
         });
       }
     } catch (err: any) {

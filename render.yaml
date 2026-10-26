@@ -3,7 +3,7 @@ services:
     name: goodwill-backend
     runtime: node
     plan: free
-    buildCommand: npm install --include=dev && npm --workspace=@goodwill/shared run build && npm --workspace=backend run build
+    buildCommand: npm ci --include=dev && npm --workspace=@goodwill/shared run build && npm --workspace=backend run build
     startCommand: npm --workspace=backend run start:prod
     healthCheckPath: /api
     envVars:
@@ -11,15 +11,44 @@ services:
         value: production
       - key: PORT
         value: 10000
-      - key: DATABASE_URL
-        sync: false
       - key: JWT_SECRET
         generateValue: true
+      # `sync: false` = set the value in the Render dashboard, never in git.
+      # Every key the app reads is declared here so a missing one is visible in Render,
+      # instead of the service silently falling back to sandbox/console mode.
+      - key: DATABASE_URL
+        sync: false
       - key: FRONTEND_URL
+        sync: false
+      - key: CORS_ORIGINS
         sync: false
       - key: GOOGLE_CLIENT_ID
         sync: false
       - key: GOOGLE_CLIENT_SECRET
         sync: false
       - key: GOOGLE_REDIRECT_URI
+        sync: false
+      - key: GITHUB_CLIENT_ID
+        sync: false
+      - key: GITHUB_CLIENT_SECRET
+        sync: false
+      - key: GITHUB_REDIRECT_URI
+        sync: false
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+      - key: GEMINI_API_KEY
         sync: false

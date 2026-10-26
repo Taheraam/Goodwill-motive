@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Param, Body } from '@nestjs/common';
+import { Controller, Get, Patch, Param, Body, ForbiddenException } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { UpdateProfileDto } from './dto/users.dto';
 import { Public } from '../auth/public.decorator';
@@ -27,7 +27,8 @@ export class UsersController {
   ) {
     // Only allow users to update their own profile
     if (currentUserId !== id) {
-      return { message: 'You can only update your own profile' };
+      // Was a 200 with a message body, so clients treated a rejected update as success.
+      throw new ForbiddenException('You can only update your own profile');
     }
     return this.usersService.updateProfile(id, dto);
   }

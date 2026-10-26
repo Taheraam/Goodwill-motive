@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "packageManager": "npm@10.8.2",
-  "description": "Goodwill Motive — Cross-platform humanitarian social-learning ecosystem",
+  "description": "Goodwill Motive \u2014 Cross-platform humanitarian social-learning ecosystem",
   "workspaces": [
     "frontend-web",
     "frontend-mobile",
@@ -21,7 +21,7 @@
   },
   "devDependencies": {
     "prettier": "^3.3.0",
-    "turbo": "latest",
+    "turbo": "^2.10.9",
     "typescript": "^5.4.0"
   },
   "engines": {

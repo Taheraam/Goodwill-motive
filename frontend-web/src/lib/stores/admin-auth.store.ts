@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import api from '@/lib/api';
+import api, { ADMIN_TOKENS } from '@/lib/api';
 
 interface AdminUser {
   id: string;
@@ -39,7 +39,8 @@ export const useAdminAuthStore = create<AdminAuthState>((set, get) => ({
         return;
       }
       if (typeof window !== 'undefined') {
-        localStorage.setItem('adminToken', data.tokens.accessToken);
+        localStorage.setItem(ADMIN_TOKENS.access, data.tokens.accessToken);
+        localStorage.setItem(ADMIN_TOKENS.refresh, data.tokens.refreshToken);
       }
       set({ admin: data.user, accessToken: data.tokens.accessToken, isAuthenticated: true, error: null });
     } catch (err: any) {
@@ -51,7 +52,8 @@ export const useAdminAuthStore = create<AdminAuthState>((set, get) => ({
 
   logout: () => {
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('adminToken');
+      localStorage.removeItem(ADMIN_TOKENS.access);
+      localStorage.removeItem(ADMIN_TOKENS.refresh);
     }
     set({ admin: null, accessToken: null, isAuthenticated: false, error: null });
   },

@@ -20,7 +20,7 @@ export class QuizzesService {
   async list(take = 50) {
     return this.prisma.quiz.findMany({
       where: { isActive: true },
-      take,
+      take: Math.min(Math.max(take, 1), 100),
       select: {
         id: true,
         title: true,
@@ -31,10 +31,19 @@ export class QuizzesService {
     });
   }
 
+  /**
+   * Public quiz payload. `correctOption` is stripped: it used to be sent to the browser,
+   * so anyone could read the answers from the network tab and score 100% every time.
+   */
   async get(id: string) {
     const quiz = await this.prisma.quiz.findUnique({ where: { id } });
     if (!quiz) throw new NotFoundException('Quiz not found');
-    return quiz;
+    const questions = this.questionsOf(quiz).map(({ correctOption: _hidden, ...publicFields }) => publicFields);
+    return { ...quiz, questions };
+  }
+
+  private questionsOf(quiz: { questions: unknown }): QuizQuestion[] {
+    return Array.isArray(quiz.questions) ? (quiz.questions as QuizQuestion[]) : [];
   }
 
   async attempt(
@@ -45,37 +54,43 @@ export class QuizzesService {
     const quiz = await this.prisma.quiz.findUnique({ where: { id: quizId } });
     if (!quiz) throw new NotFoundException('Quiz not found');
 
-    const questions: QuizQuestion[] = Array.isArray(quiz.questions)
-      ? (quiz.questions as unknown as QuizQuestion[])
-      : [];
+    const questions = this.questionsOf(quiz);
 
+    // Count each question at most once: sending the same correct answer 10 times
+    // used to add 10 points.
+    const answerByQuestion = new Map(answers.map((a) => [a.questionId, a.selectedOption]));
     let score = 0;
-    for (const ans of answers) {
-      const question = questions.find((q) => q.id === ans.questionId);
-      if (question && question.correctOption === ans.selectedOption) {
-        score++;
-      }
+    for (const q of questions) {
+      if (answerByQuestion.get(q.id) === q.correctOption) score++;
     }
 
     const totalQuestions = questions.length;
     const percentage = totalQuestions > 0 ? Math.round((score / totalQuestions) * 100) : 0;
     const passed = percentage >= CONTRIBUTION_POINTS.QUIZ_PASS_THRESHOLD;
 
-    await this.prisma.quizAttempt.create({
-      data: {
-        userId,
-        quizId,
-        score,
-        maxScore: totalQuestions,
-        answers: answers as any,
-      },
-    });
-
-    if (passed) {
-      const reward = Math.round(quiz.contributionValue * (percentage / 100));
-      await this.contributions.record(userId, ACTION_TYPES.QUIZ_COMPLETE, reward);
+    // XP is awarded only the first time a user passes a given quiz;
+    // retaking a passed quiz is allowed for practice but earns nothing.
+    let rewarded = 0;
+    if (passed && !(await this.hasPassedBefore(userId, quiz.id, totalQuestions))) {
+      rewarded = Math.round(quiz.contributionValue * (percentage / 100));
+      await this.contributions.record(userId, ACTION_TYPES.QUIZ_COMPLETE, rewarded);
     }
 
-    return { score, totalQuestions, percentage, passed };
+    await this.prisma.quizAttempt.create({
+      data: { userId, quizId, score, maxScore: totalQuestions, answers: answers as any },
+    });
+
+    return { score, totalQuestions, percentage, passed, contributionAwarded: rewarded };
+  }
+
+  private async hasPassedBefore(userId: string, quizId: string, totalQuestions: number) {
+    if (totalQuestions === 0) return false;
+    const previous = await this.prisma.quizAttempt.findMany({
+      where: { userId, quizId },
+      select: { score: true, maxScore: true },
+    });
+    return previous.some(
+      (a) => a.maxScore > 0 && (a.score / a.maxScore) * 100 >= CONTRIBUTION_POINTS.QUIZ_PASS_THRESHOLD,
+    );
   }
 }

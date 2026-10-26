@@ -18,7 +18,13 @@ async function main() {
 
   console.log('Seeding database...');
 
-  const adminPasswordHash = await bcrypt.hash('Admin@1234', 10);
+  // Admin credentials come from the environment, never from source control.
+  const adminEmail = process.env.SEED_ADMIN_EMAIL;
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD;
+  if (!adminEmail || !adminPassword || adminPassword.length < 12) {
+    throw new Error('Set SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD (min 12 chars) before seeding');
+  }
+  const adminPasswordHash = await bcrypt.hash(adminPassword, 12);
   const adminId = '000000000000000000000001';
   await prisma.user.upsert({
     where: { id: adminId },
@@ -26,7 +32,7 @@ async function main() {
     create: {
       id: adminId,
       username: 'Admin',
-      email: 'admin@goodwill.com',
+      email: adminEmail,
       passwordHash: adminPasswordHash,
       role: 'admin',
       contributionScore: 0,
@@ -35,7 +41,7 @@ async function main() {
       longestStreak: 0,
     },
   });
-  console.log('Admin user seeded: Admin / Admin@1234');
+  console.log(`Admin user seeded: ${adminEmail}`);
 
   await prisma.category.deleteMany();
   const catMath = newObjectId(), catSci = newObjectId(), catTech = newObjectId(), catLang = newObjectId(), catGlobal = newObjectId(), catHuman = newObjectId();

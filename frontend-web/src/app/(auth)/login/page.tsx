@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/stores/auth.store';
-import api from '@/lib/api';
+import { startOAuth } from '@/lib/api';
 import { GoogleIcon, GithubIcon, EyeIcon, EyeOffIcon, ArrowRightIcon, ShieldIcon } from '@/lib/icons';
 
 export default function LoginPage() {
@@ -20,31 +20,9 @@ export default function LoginPage() {
     if (useAuthStore.getState().isAuthenticated) router.push('/dashboard');
   };
 
-  const handleGoogle = async () => {
-    try {
-      const { data } = await api.get('/auth/google');
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        setError(data.message || 'Google OAuth not configured yet');
-      }
-    } catch {
-      setError('Google OAuth not available');
-    }
-  };
+  const handleGoogle = () => startOAuth('google');
 
-  const handleGithub = async () => {
-    try {
-      const { data } = await api.get('/auth/github');
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        setError(data.message || 'GitHub OAuth not configured yet');
-      }
-    } catch {
-      setError('GitHub OAuth not available');
-    }
-  };
+  const handleGithub = () => startOAuth('github');
 
   return (
     <div className="w-full max-w-md">

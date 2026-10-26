@@ -1,35 +1,37 @@
 'use client';
 
 import { Suspense, useEffect } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import api from '@/lib/api';
 import { useAuthStore } from '@/lib/stores/auth.store';
 import { LeafIcon, SparklesIcon } from '@/lib/icons';
 
 function CallbackContent() {
-  const searchParams = useSearchParams();
   const router = useRouter();
   const setAuth = useAuthStore((s) => s.setAuth);
 
   useEffect(() => {
-    const userId = searchParams.get('userId');
-    const token = searchParams.get('token');
+    // Tokens arrive in the URL fragment (#token=…), which browsers never send to servers.
+    const params = new URLSearchParams(window.location.hash.slice(1));
+    const token = params.get('token');
+    const refreshToken = params.get('refreshToken') ?? undefined;
+    // Scrub tokens from the address bar and browser history immediately.
+    window.history.replaceState(null, '', window.location.pathname);
 
-    if (userId && token) {
-      fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-        .then((res) => res.json())
-        .then((user) => {
-          setAuth(user, token);
-          router.push('/dashboard');
-        })
-        .catch(() => {
-          router.push('/login?error=oauth_failed');
-        });
-    } else {
-      router.push('/login?error=oauth_failed');
+    if (!token) {
+      router.replace('/login?error=oauth_failed');
+      return;
     }
-  }, [searchParams, setAuth, router]);
+
+    api
+      .get('/auth/me', { headers: { Authorization: `Bearer ${token}` } })
+      .then(({ data: user }) => {
+        if (!user?.id) throw new Error('No user');
+        setAuth(user, token, refreshToken);
+        router.replace('/dashboard');
+      })
+      .catch(() => router.replace('/login?error=oauth_failed'));
+  }, [setAuth, router]);
 
   return (
     <div className="text-center">
