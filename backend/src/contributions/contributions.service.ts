@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -35,7 +36,7 @@ export class ContributionsService {
   /**
    * Updates the user's streak within the same transaction context.
    */
-  private async updateStreak(tx: Parameters<Parameters<PrismaService['$transaction']>[0]>[0], userId: string) {
+  private async updateStreak(tx: Prisma.TransactionClient, userId: string) {
     const user = await tx.user.findUnique({
       where: { id: userId },
       select: { lastActivityDate: true, streakCount: true, longestStreak: true },
@@ -43,24 +44,17 @@ export class ContributionsService {
     if (!user) return;
 
     const now = new Date();
-    const lastActivity = user.lastActivityDate ? new Date(user.lastActivityDate) : null;
-    let newStreak = user.streakCount;
+    const today = dayNumber(now);
+    const lastDay = user.lastActivityDate ? dayNumber(new Date(user.lastActivityDate)) : null;
 
-    if (lastActivity) {
-      const diffMs = now.getTime() - lastActivity.getTime();
-      const diffHours = diffMs / (1000 * 60 * 60);
-
-      if (diffHours >= 24 && diffHours < 48) {
-        // Consecutive day — increment streak
-        newStreak = user.streakCount + 1;
-      } else if (diffHours >= 48) {
-        // Missed a day — reset streak
-        newStreak = 1;
-      }
-      // Within same day — no change
-    } else {
-      newStreak = 1;
-    }
+    // Streaks count calendar days (IST), not rolling 24h windows. With the old
+    // "24–48 hours since last activity" rule, a user active at 23:00 and again at
+    // 01:00 the next day never got their streak incremented.
+    let newStreak: number;
+    if (lastDay === null) newStreak = 1;
+    else if (today === lastDay) newStreak = Math.max(user.streakCount, 1); // same day
+    else if (today === lastDay + 1) newStreak = user.streakCount + 1; // consecutive day
+    else newStreak = 1; // missed at least one day
 
     const newLongest = Math.max(newStreak, user.longestStreak);
 
@@ -102,4 +96,11 @@ export class ContributionsService {
       missionCount,
     };
   }
+}
+
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+
+/** Days since epoch in India Standard Time — the platform's audience timezone. */
+export function dayNumber(date: Date): number {
+  return Math.floor((date.getTime() + IST_OFFSET_MS) / 86_400_000);
 }
