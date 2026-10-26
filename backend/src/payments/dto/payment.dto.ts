@@ -1,46 +1,35 @@
-import { IsString, IsNumber, IsOptional, Min } from 'class-validator';
+import { IsString, IsNumber, IsOptional, Min, Max, IsEmail, IsMongoId, MaxLength, Matches } from 'class-validator';
 
 export class CreateOrderDto {
   @IsNumber()
-  @Min(1)
-  amount: number; // In Rupees / base unit (e.g., 250 for 10 meals)
+  @Min(25, { message: 'Minimum sponsorship is ₹25 (1 meal)' })
+  @Max(500000)
+  amount: number; // In rupees
 
-  @IsString()
-  @IsOptional()
-  currency?: string = 'INR';
-
-  @IsString()
+  @IsMongoId()
   @IsOptional()
   campaignId?: string;
 
-  @IsNumber()
-  @IsOptional()
-  mealsSponsored?: number;
-
   @IsString()
   @IsOptional()
+  @MaxLength(100)
   donorName?: string;
 
-  @IsString()
+  @IsEmail()
   @IsOptional()
   donorEmail?: string;
 }
 
 export class VerifyPaymentDto {
   @IsString()
+  @MaxLength(100)
   razorpayOrderId: string;
 
   @IsString()
+  @MaxLength(100)
   razorpayPaymentId: string;
 
   @IsString()
+  @Matches(/^[\w-]{1,128}$/)
   razorpaySignature: string;
-
-  @IsString()
-  @IsOptional()
-  donorName?: string;
-
-  @IsString()
-  @IsOptional()
-  donorEmail?: string;
 }
