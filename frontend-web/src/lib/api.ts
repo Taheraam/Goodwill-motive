@@ -35,8 +35,13 @@ function createClient(keys: TokenKeys): AxiosInstance {
   };
 
   client.interceptors.request.use((config) => {
-    const token = storage.get(keys.access);
-    if (token) config.headers.Authorization = `Bearer ${token}`;
+    // Respect an Authorization header the caller set explicitly. The OAuth callback page
+    // sends the brand-new token this way; overwriting it with a stale token left in
+    // localStorage from an earlier session made /auth/me return 401 (oauth_failed).
+    if (!config.headers.Authorization) {
+      const token = storage.get(keys.access);
+      if (token) config.headers.Authorization = `Bearer ${token}`;
+    }
     return config;
   });
 
